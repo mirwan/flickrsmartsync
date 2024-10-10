@@ -4,9 +4,9 @@ import argparse
 import os
 import logging
 from logging.handlers import SysLogHandler
-from sync import Sync
-from local import Local
-from remote import Remote
+from .sync import Sync
+from .local import Local
+from .remote import Remote
 
 __author__ = 'faisal'
 # todo get from setup.cfg
