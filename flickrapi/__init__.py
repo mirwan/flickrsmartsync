@@ -656,7 +656,7 @@ class FlickrAPI(object):
             browser = webbrowser.get()
         except webbrowser.Error:
             if 'BROWSER' not in os.environ:
-                print 'Please authorize: %s' % auth_url
+                print('Please authorize: %s' % auth_url)
                 return
             browser = webbrowser.GenericBrowser(os.environ['BROWSER'])
 
@@ -903,7 +903,7 @@ def set_log_level(level):
 
 
 if __name__ == "__main__":
-    print "Running doctests"
+    print("Running doctests")
     import doctest
     doctest.testmod()
-    print "Tests OK"
+    print("Tests OK")

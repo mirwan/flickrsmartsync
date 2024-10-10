@@ -26,7 +26,7 @@ def main():
           packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
           include_package_data=True,
           zip_safe=False,
-          install_requires=['watchdog', 'IPTCInfo'],
+          install_requires=['watchdog', 'iptcinfo3'],
           entry_points={
               "console_scripts": ['flickrsmartsync = flickrsmartsync:main'],
           },
