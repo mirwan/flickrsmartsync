@@ -704,10 +704,10 @@ class FlickrAPI(object):
 
         An example::
 
-            (token, frob) = flickr.get_token_part_one(perms='write')
+            token, frob = flickr.get_token_part_one(perms='write')
             if not token:
                 raw_input("Press ENTER after you authorized this program")
-            flickr.get_token_part_two((token, frob))
+            flickr.get_token_part_two(token, frob)
 
         Also take a look at ``authenticate_console(perms)``.
         """
@@ -763,7 +763,7 @@ class FlickrAPI(object):
 
         return (token, frob)
 
-    def get_token_part_two(self, (token, frob)):
+    def get_token_part_two(self, token, frob):
         """Part two of getting a token,
            see ``get_token_part_one(...)`` for details."""
 
@@ -808,7 +808,7 @@ class FlickrAPI(object):
         if not token:
             raw_input("Press ENTER after you authorized this program")
 
-        self.get_token_part_two((token, frob))
+        self.get_token_part_two(token, frob)
 
     @require_format('etree')
     def __data_walker(self, method, **params):

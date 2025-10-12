@@ -1,4 +1,4 @@
-import HTMLParser
+from html.parser import HTMLParser
 import json
 import os
 import re
