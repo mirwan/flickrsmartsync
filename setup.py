@@ -15,7 +15,7 @@ def main():
           classifiers=[
               'Development Status :: 3 - Alpha',
               'Environment :: Console',
-              'Programming Language :: Python',
+              'Programming Language :: Python :: 3',
               'License :: OSI Approved :: MIT License'
           ],
           keywords='flickr backup photo sync',
@@ -23,10 +23,11 @@ def main():
           author_email='support@altlimit.com',
           url='https://github.com/faisalraja/flickrsmartsync',
           license='MIT',
-          packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
+          packages=find_packages(exclude=['ez_setup', 'examples', 'tests', 'test']),
           include_package_data=True,
           zip_safe=False,
-          install_requires=['watchdog', 'IPTCInfo'],
+          python_requires='>=3.9',
+          install_requires=['flickrapi>=2.4', 'watchdog', 'IPTCInfo3'],
           entry_points={
               "console_scripts": ['flickrsmartsync = flickrsmartsync:main'],
           },

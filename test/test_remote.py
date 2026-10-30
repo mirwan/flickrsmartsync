@@ -13,9 +13,8 @@ logger.setLevel(logging.WARNING)
 
 class authedRemote(Remote):
     def auth_api(self):
-        token = "72157645636119732-71cd968268ffd2e5"
-        self.api = flickrapi.FlickrAPI(KEY, SECRET, username="rqpmbdqm24", token=token)
-        return token
+        # needs a cached OAuth token with delete perms for this user
+        self.api = flickrapi.FlickrAPI(KEY, SECRET, username="rqpmbdqm24")
 
 class remoteTest(unittest.TestCase):
 
@@ -28,6 +27,7 @@ class remoteTest(unittest.TestCase):
             custom_set_builder=None
             is_windows=False
             download=None
+            fix_missing_description=False
         self.remote = authedRemote(args())
         self.deletePhotoset = None
         self.deleteFile = None
@@ -48,39 +48,39 @@ class remoteTest(unittest.TestCase):
             os.remove(self.deleteFile)
 
     def test_list_sets(self):
-        self.assertEquals(self.remote.get_photo_sets(), {'Gradient test images': u'72157645524834044'})
+        self.assertEqual(self.remote.get_photo_sets(), {'Gradient test images': '72157645524834044'})
 
     def test_list_photos(self):
-        self.assertEquals(self.remote.get_photos_in_set('Gradient test images'),{'Black gradient (reasonable size).jpg': u'14491535316'})
+        self.assertEqual(self.remote.get_photos_in_set('Gradient test images'),{'Black gradient (reasonable size).jpg': '14491535316'})
 
     def test_add_to_set(self):
         self.remote.add_to_photo_set(14524802935, 'Stuff2')
         self.deletePhotoset = self.remote.get_photo_sets()['Stuff2']
-        self.assertEquals(len(self.remote.get_photos_in_set('Stuff2')),1)
+        self.assertEqual(len(self.remote.get_photos_in_set('Stuff2')),1)
         self.remote.add_to_photo_set(14491535316, 'Stuff2')
-        self.assertEquals(len(self.remote.get_photos_in_set('Stuff2')),2)
+        self.assertEqual(len(self.remote.get_photos_in_set('Stuff2')),2)
 
     def test_addPhoto(self):
         self.deletePhoto = self.remote.upload(here+'/images/new_gradient.jpg', 'new_gradient.jpg', 'images')
         self.deletePhotoset = self.remote.get_photo_sets()['images']
-        self.assertEquals(len(self.remote.get_photos_in_set('images')),1)
+        self.assertEqual(len(self.remote.get_photos_in_set('images')),1)
 
     def test_customSet(self):
         self.remote.cmd_args.custom_set = ".*im(.*)"
         self.deletePhoto = self.remote.upload(here+'/images/new_gradient.jpg', 'new_gradient.jpg', 'images')
         self.deletePhotoset = self.remote.get_photo_sets()['images']
-        self.assertEquals(self.remote.api.photosets_getInfo(photoset_id=self.deletePhotoset).find("photoset").find("title").text, "ages")
+        self.assertEqual(self.remote.api.photosets_getInfo(photoset_id=self.deletePhotoset).find("photoset").find("title").text, "ages")
         self.remote.cmd_args.update_custom_set = True
         self.remote.cmd_args.custom_set = ".*i(.*)"
         self.remote.update_photo_sets_map()
-        self.assertEquals(self.remote.api.photosets_getInfo(photoset_id=self.deletePhotoset).find("photoset").find("title").text, "mages")
+        self.assertEqual(self.remote.api.photosets_getInfo(photoset_id=self.deletePhotoset).find("photoset").find("title").text, "mages")
 
     def test_download(self):
         images = self.remote.get_photos_in_set('Gradient test images', get_url=True)
-        self.assertEquals(len(images), 1)
+        self.assertEqual(len(images), 1)
         self.deleteFile = here+os.sep+"tmp.jpg"
-        self.remote.download(images.values()[0], self.deleteFile)
-        self.assertEquals(os.path.isfile(self.deleteFile), 1)
+        self.remote.download(list(images.values())[0], self.deleteFile)
+        self.assertEqual(os.path.isfile(self.deleteFile), 1)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

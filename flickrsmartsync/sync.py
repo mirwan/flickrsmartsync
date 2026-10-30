@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 
 logger = logging.getLogger("flickrsmartsync")
@@ -20,8 +21,8 @@ class Sync(object):
         # Ignore extensions
         if self.cmd_args.ignore_ext:
             extensions = self.cmd_args.ignore_ext.split(',')
-            EXT_IMAGE = filter(lambda e: e not in extensions, EXT_IMAGE)
-            EXT_VIDEO = filter(lambda e: e not in extensions, EXT_VIDEO)
+            EXT_IMAGE = tuple(e for e in EXT_IMAGE if e not in extensions)
+            EXT_VIDEO = tuple(e for e in EXT_VIDEO if e not in extensions)
 
     def start_sync(self):
         # Do the appropriate one time sync
@@ -134,8 +135,8 @@ class Sync(object):
                 for photo_set in photo_sets:
                     logger.info('Set Title: [%s]  Path: [%s]' % (self.remote.get_custom_set_title(photo_set), photo_set))
 
-                if self.cmd_args.custom_set_debug and raw_input('Is this your expected custom set titles (y/n):') != 'y':
-                    exit(0)
+                if self.cmd_args.custom_set_debug and input('Is this your expected custom set titles (y/n):') != 'y':
+                    sys.exit(0)
 
         # Loop through all local photo set map and
         # upload photos that does not exists in online map

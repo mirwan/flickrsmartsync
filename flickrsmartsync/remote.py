@@ -1,8 +1,9 @@
-import HTMLParser
+import html
 import json
 import os
 import re
-import urllib
+import sys
+import urllib.request
 import flickrapi
 import logging
 
@@ -16,33 +17,40 @@ SECRET = 'c329cdaf44c6d3f3'
 RETRIES = 5
 
 
+def authorize(username=None):
+    # One time interactive OAuth, the token is cached in ~/.flickr for unattended runs
+    api = flickrapi.FlickrAPI(KEY, SECRET, username=username)
+    if api.token_valid(perms='delete'):
+        logger.info('Already authorized')
+        return
+    api.get_request_token(oauth_callback='oob')
+    print('Please authorize this app by opening this url:')
+    print(api.auth_url(perms='delete'))
+    verifier = input('Then enter the verifier code: ').strip()
+    api.get_access_token(verifier)
+    logger.info('Authorized, token saved')
+
+
 class Remote(object):
 
     def __init__(self, cmd_args):
         # Command line arguments
         self.cmd_args = cmd_args
-        token = self.auth_api()
+        self.auth_api()
 
         # Common arguments
-        self.args = {'format': 'json', 'nojsoncallback': 1, 'auth_token': token}
+        self.args = {'format': 'json', 'nojsoncallback': 1}
 
         # photo_sets_map[folder] = id
         self.update_photo_sets_map()
 
     def auth_api(self):
         self.api = flickrapi.FlickrAPI(KEY, SECRET, username=self.cmd_args.username)  # pass username argument to api
-        # api.token.path = 'flickr.token.txt'
 
-        # Ask for permission
-        (token, frob) = self.api.get_token_part_one(perms='delete')
-        if not token:
-            raw_input("Please authorized this app then hit enter:")
-        try:
-            token = self.api.get_token_part_two((token, frob))
-        except:
-            logger.error('Please authorized to use')
-            exit(0)
-        return token
+        # Never prompt here, the token must have been cached in ~/.flickr by --auth
+        if not self.api.token_valid(perms='delete'):
+            logger.error('No valid flickr token found, run "flickrsmartsync --auth" once to authorize this app')
+            sys.exit(1)
 
     # custom set builder
     def get_custom_set_title(self, path):
@@ -86,9 +94,6 @@ class Remote(object):
 
     # Get photos in a set
     def get_photos_in_set(self, folder, get_url=False):
-        # bug on non utf8 machines dups
-        folder = folder.encode('utf-8') if isinstance(folder, unicode) else folder
-
         photos = {}
         # Always upload unix style
         if self.cmd_args.is_windows:
@@ -107,7 +112,7 @@ class Remote(object):
                     break
 
                 for photo in photos_in_set['photoset']['photo']:
-                    title = photo['title'].encode('utf-8')
+                    title = photo['title']
                     # add missing extension if not present (take a guess as api original_format argument not working)
                     split = title.split(".")
                     # assume valid file extension is less than or equal to 5 characters and not all digits
@@ -123,7 +128,7 @@ class Remote(object):
                         if sizes['stat'] != 'ok':
                             continue
 
-                        original = filter(lambda s: s['label'].startswith('Video Original') and s['media'] == 'video', sizes['sizes']['size'])
+                        original = [s for s in sizes['sizes']['size'] if s['label'].startswith('Video Original') and s['media'] == 'video']
                         if original:
                             photos[title] = original.pop()['source']
                             
@@ -137,7 +142,6 @@ class Remote(object):
 
     def update_photo_sets_map(self):
         # Get your photosets online and map it to your local
-        html_parser = HTMLParser.HTMLParser()
         photosets_args = self.args.copy()
         page = 1
         self.photo_sets_map = {}
@@ -152,12 +156,10 @@ class Remote(object):
 
             for current_set in sets['photosets']['photoset']:
                 # Make sure it's the one from backup format
-                desc = html_parser.unescape(current_set['description']['_content'])
-                desc = desc.encode('utf-8') if isinstance(desc, unicode) else desc
+                desc = html.unescape(current_set['description']['_content'])
 
                 if self.cmd_args.fix_missing_description and not desc:
-                    current_set_title = html_parser.unescape(current_set['title']['_content'])
-                    current_set_title = current_set_title.encode('utf-8') if isinstance(current_set_title, unicode) else current_set_title
+                    current_set_title = html.unescape(current_set['title']['_content'])
                     description_update_args = self.args.copy()
                     description_update_args.update({
                         'photoset_id': current_set['id'],
@@ -185,7 +187,6 @@ class Remote(object):
 
     def upload(self, file_path, photo, folder):
         upload_args = {
-            'auth_token': self.args["auth_token"],
             # (Optional) The title of the photo.
             'title': photo,
             # (Optional) A description of the photo. May contain some limited HTML.
@@ -218,7 +219,7 @@ class Remote(object):
             os.makedirs(folder)   
         for i in range(RETRIES):
             try:
-                return urllib.urlretrieve(url, path)
+                return urllib.request.urlretrieve(url, path)
             except Exception as e:
                 logger.warning("Retrying download of %s after error: %s" % (path, e))
         # failed many times

@@ -1,4 +1,4 @@
-from iptcinfo import IPTCInfo
+from iptcinfo3 import IPTCInfo
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import time
@@ -37,7 +37,7 @@ class Local(object):
                             if keywords:
                                 file_path = os.path.join(r, file)
                                 info = IPTCInfo(file_path, force=True)
-                                matches = keywords.intersection(info.keywords)
+                                matches = keywords.intersection(k.decode('utf-8', 'replace') for k in info['keywords'])
                                 if not matches:
                                     # no matching keyword(s) found, skip file
                                     logger.info('Skipped [%s] does not match any keyword %s' % (file, list(keywords)))
@@ -49,8 +49,8 @@ class Local(object):
                             photo_sets[r].append((file, file_stat))
 
         if skips_root:
-            logger.warn('To avoid disorganization on flickr sets root photos are not synced, skipped these photos: %s' % skips_root)
-            logger.warn('Try to sync at top most level of your photos directory')
+            logger.warning('To avoid disorganization on flickr sets root photos are not synced, skipped these photos: %s' % skips_root)
+            logger.warning('Try to sync at top most level of your photos directory')
         return photo_sets
 
     def watch_for_changes(self, upload_func):

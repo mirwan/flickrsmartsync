@@ -25,6 +25,9 @@ Example Usage
 
 Both run from source and command line have same parameters::
 
+    authorize once (interactive, token is saved in ~/.flickr), then all other commands run unattended
+    $ flickrsmartsync --auth
+
     start uploading all photos/videos under that folder
     $ flickrsmartsync
     ignore videos for others use --help

@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 import argparse
 import os
+import sys
 import logging
 from logging.handlers import SysLogHandler
-from sync import Sync
-from local import Local
-from remote import Remote
+from .sync import Sync
+from .local import Local
+from .remote import Remote, authorize
 
 __author__ = 'faisal'
 # todo get from setup.cfg
@@ -55,6 +56,8 @@ def main():
                         help='for testing your custom sets, asks for confirmation when creating an album on flickr')
     parser.add_argument('--username', type=str, 
                         help='token username')  # token username argument for api
+    parser.add_argument('--auth', action='store_true',
+                        help='authorize this app on flickr (interactive, run once before unattended syncs)')
     parser.add_argument('--keyword', action='append', type=str, 
                         help='only upload files matching this keyword')
 
@@ -62,14 +65,18 @@ def main():
 
     if args.version:
         logger.info(version)
-        exit()
+        sys.exit()
+
+    if args.auth:
+        authorize(args.username)
+        sys.exit()
 
     # validate args
     args.is_windows = os.name == 'nt'
     args.sync_path = args.sync_path.rstrip(os.sep) + os.sep
     if not os.path.exists(args.sync_path):
         logger.error('Sync path does not exists')
-        exit(0)
+        sys.exit(0)
 
     local = Local(args)
     remote = Remote(args)

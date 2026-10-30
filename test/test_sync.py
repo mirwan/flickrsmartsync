@@ -4,6 +4,7 @@ import logging
 import sys
 import os
 import copy
+from unittest import mock
 
 import time
 here = os.path.dirname(os.path.abspath(__file__))
@@ -36,7 +37,7 @@ class fakeRemote:
     def upload(self, file_path, photo, folder):
         self.files[self.photo_sets_map[folder]][photo] = fakeid
     def download(self, url, path):
-        fakeLocal.files.values()[0].append((os.path.basename(path), fakestat))
+        list(fakeLocal.files.values())[0].append((os.path.basename(path), fakestat))
 
 class syncTest(unittest.TestCase):
     maxDiff=None
@@ -50,6 +51,8 @@ class syncTest(unittest.TestCase):
             is_windows=False
             download="."
             sync_from="all"
+            ignore_ext=None
+            dry_run=False
         self.local = fakeLocal()
         self.remote = fakeRemote()
         self.sync = Sync(args(), self.local, self.remote)
@@ -59,26 +62,27 @@ class syncTest(unittest.TestCase):
 
     def test_upload(self):
         expected = fakeRemote().files
-        for f, s in self.local.files.values()[0]:
-            expected.values()[0][f] = fakeid
+        for f, s in list(self.local.files.values())[0]:
+            list(expected.values())[0][f] = fakeid
         self.sync.upload()
-        self.assertEquals(self.remote.files, expected)
+        self.assertEqual(self.remote.files, expected)
 
     def test_download(self):
         expected = copy.deepcopy(fakeLocal().files)
-        expected.values()[0] += [(x, fakestat) for x in self.remote.files.values()[0]]
+        list(expected.values())[0] += [(x, fakestat) for x in list(self.remote.files.values())[0]]
         self.sync.download()
-        self.assertEquals(self.local.files, expected)
+        self.assertEqual(self.local.files, expected)
 
     def test_sync(self):
         expectedr = fakeRemote().files
-        for f, s in self.local.files.values()[0]:
-            expectedr.values()[0][f] = fakeid        
+        for f, s in list(self.local.files.values())[0]:
+            list(expectedr.values())[0][f] = fakeid        
         expectedl = copy.deepcopy(fakeLocal().files)
-        expectedl.values()[0] += [(x, fakestat) for x in self.remote.files.values()[0]]
-        self.sync.sync()
-        self.assertEquals(self.remote.files, expectedr)
-        self.assertEquals(self.local.files, expectedl)
+        list(expectedl.values())[0] += [(x, fakestat) for x in list(self.remote.files.values())[0]]
+        with mock.patch("flickrsmartsync.sync.os.stat", return_value=fakestat):
+            self.sync.sync()
+        self.assertEqual(self.remote.files, expectedr)
+        self.assertEqual(self.local.files, expectedl)
         
 if __name__ == '__main__':
     logging.debug('Started test case')

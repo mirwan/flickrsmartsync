@@ -27,7 +27,7 @@ class localTest(unittest.TestCase):
 
     def test_list_files(self):
         ps = self.local.build_photo_sets(here, ('jpg',))
-        self.assertEquals(ps, {here+os.sep+'images': [('new_gradient.jpg', os.stat(here+os.sep+'images'+os.sep+'new_gradient.jpg'))]})
+        self.assertEqual(ps, {here+os.sep+'images': [('new_gradient.jpg', os.stat(here+os.sep+'images'+os.sep+'new_gradient.jpg'))]})
 
     def test_starts_with(self):
         self.local.cmd_args.starts_with = 'images'
@@ -39,9 +39,10 @@ class localTest(unittest.TestCase):
     def test_monitor(self):
         self.local.watch_for_changes(self.upload_func)
         p = os.sep.join((here,"images","new.jpg"))
-        open(p, "w").write("test")
+        with open(p, "w") as f:
+            f.write("test")
         time.sleep(1)
-        self.assertEquals(self.watch_path, p)
+        self.assertEqual(self.watch_path, p)
 
 
 if __name__ == '__main__':
