@@ -25,7 +25,7 @@ def authorize(username=None):
         return
     api.get_request_token(oauth_callback='oob')
     print('Please authorize this app by opening this url:')
-    print(api.auth_url(perms='delete'))
+    print(api.auth_url(perms='write'))
     verifier = input('Then enter the verifier code: ').strip()
     api.get_access_token(verifier)
     logger.info('Authorized, token saved')
@@ -48,7 +48,7 @@ class Remote(object):
         self.api = flickrapi.FlickrAPI(KEY, SECRET, username=self.cmd_args.username)  # pass username argument to api
 
         # Never prompt here, the token must have been cached in ~/.flickr by --auth
-        if not self.api.token_valid(perms='delete'):
+        if not self.api.token_valid(perms='write'):
             logger.error('No valid flickr token found, run "flickrsmartsync --auth" once to authorize this app')
             sys.exit(1)
 
