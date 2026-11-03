@@ -28,6 +28,13 @@ Both run from source and command line have same parameters::
     authorize once (interactive, token is saved in ~/.flickr), then all other commands run unattended
     $ flickrsmartsync --auth
 
+    use your own flickr api key (https://www.flickr.com/services/apps/create/) instead of the shared one,
+    tokens are per key so run --auth again after setting them
+    $ export FLICKR_API_KEY=... FLICKR_API_SECRET=...
+
+    flickr calls are spaced by 1 second (flickr allows 3600 calls/hour), and retried on HTTP 429/503
+    $ flickrsmartsync --api-delay 2
+
     start uploading all photos/videos under that folder
     $ flickrsmartsync
     ignore videos for others use --help

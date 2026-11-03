@@ -56,6 +56,8 @@ def main():
                         help='for testing your custom sets, asks for confirmation when creating an album on flickr')
     parser.add_argument('--username', type=str, 
                         help='token username')  # token username argument for api
+    parser.add_argument('--api-delay', type=float, default=1.0,
+                        help='minimum seconds between flickr calls, flickr allows 3600 calls/hour (default 1.0, 0 disables)')
     parser.add_argument('--auth', action='store_true',
                         help='authorize this app on flickr (interactive, run once before unattended syncs)')
     parser.add_argument('--keyword', action='append', type=str, 
@@ -66,6 +68,10 @@ def main():
     if args.version:
         logger.info(version)
         sys.exit()
+
+    if bool(os.environ.get('FLICKR_API_KEY')) != bool(os.environ.get('FLICKR_API_SECRET')):
+        logger.error('FLICKR_API_KEY and FLICKR_API_SECRET must be set together')
+        sys.exit(1)
 
     if args.auth:
         authorize(args.username)

@@ -28,6 +28,7 @@ class remoteTest(unittest.TestCase):
             is_windows=False
             download=None
             fix_missing_description=False
+            api_delay=1.0
         self.remote = authedRemote(args())
         self.deletePhotoset = None
         self.deleteFile = None

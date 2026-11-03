@@ -27,7 +27,7 @@ def main():
           include_package_data=True,
           zip_safe=False,
           python_requires='>=3.9',
-          install_requires=['flickrapi>=2.4', 'watchdog', 'IPTCInfo3'],
+          install_requires=['flickrapi>=2.4', 'requests', 'urllib3>=2', 'watchdog', 'IPTCInfo3'],
           entry_points={
               "console_scripts": ['flickrsmartsync = flickrsmartsync:main'],
           },

@@ -3,18 +3,57 @@ import json
 import os
 import re
 import sys
+import threading
+import time
 import urllib.request
 import flickrapi
 import logging
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger("flickrsmartsync")
 
 #  flickr api keys
-KEY = 'f7da21662566bc773c7c750ddf7030f7'
-SECRET = 'c329cdaf44c6d3f3'
+# the default key is shared by every flickrsmartsync user (and its 3600 calls/hour quota),
+# set FLICKR_API_KEY and FLICKR_API_SECRET to use your own
+KEY = os.environ.get('FLICKR_API_KEY') or 'f7da21662566bc773c7c750ddf7030f7'
+SECRET = os.environ.get('FLICKR_API_SECRET') or 'c329cdaf44c6d3f3'
 
-# number of retries for downloads
+# number of retries for uploads and downloads
 RETRIES = 5
+
+# backoff between upload/download retries: 5, 10, 20, 40... seconds, capped
+RETRY_BACKOFF = 5
+RETRY_BACKOFF_MAX = 300
+
+# API calls rejected with "Too Many Requests" or "Service Unavailable" are retried,
+# waiting for Retry-After when flickr sends it, else backoff 2, 4, 8... seconds, capped.
+# Only status and connect errors are retried: the request was not processed so it is safe for POST.
+API_RETRY = Retry(total=8, connect=5, read=0, status=8, status_forcelist=(429, 503),
+                  allowed_methods=None, backoff_factor=1, backoff_max=RETRY_BACKOFF_MAX,
+                  respect_retry_after_header=True, raise_on_status=False)
+
+
+def retry_delay(attempt):
+    return min(RETRY_BACKOFF * 2 ** attempt, RETRY_BACKOFF_MAX)
+
+
+class ThrottledAdapter(HTTPAdapter):
+    # Spaces out requests by at least `delay` seconds (flickr allows 3600 calls/hour per api key)
+
+    def __init__(self, delay, **kwargs):
+        self.delay = delay
+        self.last_request = 0
+        self.lock = threading.Lock()
+        super(ThrottledAdapter, self).__init__(**kwargs)
+
+    def send(self, request, **kwargs):
+        with self.lock:
+            wait = self.last_request + self.delay - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            self.last_request = time.monotonic()
+        return super(ThrottledAdapter, self).send(request, **kwargs)
 
 
 def authorize(username=None):
@@ -46,11 +85,19 @@ class Remote(object):
 
     def auth_api(self):
         self.api = flickrapi.FlickrAPI(KEY, SECRET, username=self.cmd_args.username)  # pass username argument to api
+        self.setup_http(self.api)
 
         # Never prompt here, the token must have been cached in ~/.flickr by --auth
         if not self.api.token_valid(perms='write'):
             logger.error('No valid flickr token found, run "flickrsmartsync --auth" once to authorize this app')
             sys.exit(1)
+
+    def setup_http(self, api):
+        # Throttle every call, retry API calls only: an upload body is a stream that can't be replayed
+        # and is retried in upload() instead
+        session = api.flickr_oauth.session
+        session.mount(api.REST_URL, ThrottledAdapter(self.cmd_args.api_delay, max_retries=API_RETRY))
+        session.mount('https://up.flickr.com/', ThrottledAdapter(self.cmd_args.api_delay))
 
     # custom set builder
     def get_custom_set_title(self, path):
@@ -207,11 +254,22 @@ class Remote(object):
             try:
                 upload = self.api.upload(file_path, None, **upload_args)
                 photo_id = upload.find('photoid').text
-                self.add_to_photo_set(photo_id, folder)
-                return photo_id
+                break
             except Exception as e:
-                logger.warning("Retrying upload of %s/%s after error: %s" % (folder, photo, e))
-        logger.error("Failed upload of %s/%s after %d retries" % (folder, photo, RETRIES))
+                error = e
+                if i + 1 < RETRIES:
+                    logger.warning("Retrying upload of %s/%s in %ss after error: %s" % (folder, photo, retry_delay(i), e))
+                    time.sleep(retry_delay(i))
+        else:
+            logger.error("Failed upload of %s/%s after %d retries: %s" % (folder, photo, RETRIES, error))
+            return
+
+        # Not in the retry loop, it would upload the photo again
+        try:
+            self.add_to_photo_set(photo_id, folder)
+        except Exception as e:
+            logger.error("Uploaded %s/%s but failed to add it to its set: %s" % (folder, photo, e))
+        return photo_id
 
     def download(self, url, path):
         folder = os.path.dirname(path)
@@ -221,6 +279,8 @@ class Remote(object):
             try:
                 return urllib.request.urlretrieve(url, path)
             except Exception as e:
-                logger.warning("Retrying download of %s after error: %s" % (path, e))
+                if i + 1 < RETRIES:
+                    logger.warning("Retrying download of %s in %ss after error: %s" % (path, retry_delay(i), e))
+                    time.sleep(retry_delay(i))
         # failed many times
         logger.error("Failed to download %s after %d retries" % (path, RETRIES))
